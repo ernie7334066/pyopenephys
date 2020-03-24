@@ -59,8 +59,7 @@ def loadContinuous(filepath, dtype=float):
         recordingNumbers[recordNumber] = (np.fromfile(f, np.dtype('>u2'), 1))  # big-endian 16-bit unsigned integer
 
         if dtype == float:  # Convert data to float array and convert bits to voltage.
-            data = np.fromfile(f, np.dtype('>i2'), N) * float(
-                header['bitVolts'])  # big-endian 16-bit signed integer, multiplied by bitVolts
+            data = np.fromfile(f, np.dtype('>i2'), N) * float(1)
         else:  # Keep data in signed 16 bit integer format.
             data = np.fromfile(f, np.dtype('>i2'), N)  # big-endian 16-bit signed integer
         samples[indices[recordNumber]:indices[recordNumber + 1]] = data

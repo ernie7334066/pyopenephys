@@ -123,10 +123,10 @@ class File:
     """
     Class for reading experimental data from an OpenEphys dataset.
     """
-    def __init__(self, foldername):
+    def __init__(self, foldername, file_prefix='CH'):
         self._absolute_foldername = foldername
         self._path, self.relative_foldername = os.path.split(foldername)
-
+        self.file_prefix = file_prefix
         # figure out format
         files = [f for f in sorted(os.listdir(self._absolute_foldername))]
 
@@ -171,7 +171,7 @@ class File:
 
 
 class Experiment:
-    def __init__(self, path, id, file):
+    def __init__(self, path, id, file, file_prefix='CH'):
         self.file = file
         self.id = id
         self.sig_chain = dict()
@@ -179,7 +179,8 @@ class Experiment:
         self._recordings = []
         self.settings = None
         self.acquisition_system = None
-
+        self.file_prefix = file.file_prefix
+        
         if self.file.format == 'openephys':
             self._path = self._absolute_foldername
             self._read_settings(id)
@@ -187,17 +188,17 @@ class Experiment:
             # retrieve number of recordings
             if self.acquisition_system is not None:
                 if self.id == 1:
-                    contFile = [f for f in os.listdir(self._absolute_foldername) if 'continuous' in f and 'CH' in f
+                    contFile = [f for f in os.listdir(self._absolute_foldername) if 'continuous' in f and self.file_prefix in f
                                  and len(f.split('_')) == 2][0]
                 else:
-                    contFile = [f for f in os.listdir(self._absolute_foldername) if 'continuous' in f and 'CH' in f
+                    contFile = [f for f in os.listdir(self._absolute_foldername) if 'continuous' in f and self.file_prefix  in f
                                  and '_' + str(self.id) in f][0]
                 data = loadContinuous(op.join(self._absolute_foldername, contFile))
                 rec_ids = np.unique(data['recordingNumber'])
                 for rec_id in rec_ids:
-                    self._recordings.append(Recording(self._absolute_foldername, int(rec_id), self))
+                    self._recordings.append(Recording(self._absolute_foldername, int(rec_id), self, self.file_prefix))
             else:
-                self._recordings.append(Recording(self._absolute_foldername, int(self.id), self))
+                self._recordings.append(Recording(self._absolute_foldername, int(self.id), self, self.file_prefix))
 
         elif self.file.format == 'binary':
             self._path = op.dirname(path)
@@ -310,7 +311,7 @@ class Experiment:
 
 
 class Recording:
-    def __init__(self, path, id, experiment):
+    def __init__(self, path, id, experiment, file_prefix='CH'):
         self.experiment = experiment
         self.absolute_foldername = path
         self.sig_chain = experiment.sig_chain
@@ -318,7 +319,8 @@ class Recording:
         self.datetime = experiment.datetime
         self.nchan = experiment.nchan
         self.id = id
-
+        self.file_prefix=file_prefix
+        
         self._analog_signals_dirty = True
         self._digital_signals_dirty = True
         self._channel_groups_dirty = True
@@ -680,14 +682,14 @@ class Recording:
             elif self.format == 'openephys':
                 # Find continuous CH data
                 if self.experiment.id == 1:
-                    contFiles = [f for f in os.listdir(self.absolute_foldername) if 'continuous' in f and 'CH' in f
+                    contFiles = [f for f in os.listdir(self.absolute_foldername) if 'continuous' in f and self.file_prefix in f
                                  and len(f.split('_'))==2]
                 else:
-                    contFiles = [f for f in os.listdir(self.absolute_foldername) if 'continuous' in f and 'CH' in f
+                    contFiles = [f for f in os.listdir(self.absolute_foldername) if 'continuous' in f and self.file_prefix in f
                                  and '_' + str(self.experiment.id) in f]
-
+                
                 # order channels
-                idxs = [int(x[x.find('CH') + 2: x.find('.')]) for x in contFiles]
+                idxs = [int(x[x.find(self.file_prefix) + len(self.file_prefix): x.find('.')]) for x in contFiles]
                 contFiles = list(np.array(contFiles)[np.argsort(idxs)])
 
                 if len(contFiles) != 0:
