@@ -123,10 +123,11 @@ class File:
     """
     Class for reading experimental data from an OpenEphys dataset.
     """
-    def __init__(self, foldername, file_prefix='CH'):
+    def __init__(self, foldername, file_prefix='CH', ch_selected='all'):
         self._absolute_foldername = foldername
         self._path, self.relative_foldername = os.path.split(foldername)
         self.file_prefix = file_prefix
+        self.ch_selected = ch_selected
         # figure out format
         files = [f for f in sorted(os.listdir(self._absolute_foldername))]
 
@@ -171,7 +172,7 @@ class File:
 
 
 class Experiment:
-    def __init__(self, path, id, file, file_prefix='CH'):
+    def __init__(self, path, id, file, file_prefix='CH',ch_selected='all'):
         self.file = file
         self.id = id
         self.sig_chain = dict()
@@ -180,6 +181,7 @@ class Experiment:
         self.settings = None
         self.acquisition_system = None
         self.file_prefix = file.file_prefix
+        self.ch_selected = file.ch_selected
         
         if self.file.format == 'openephys':
             self._path = self._absolute_foldername
@@ -196,9 +198,9 @@ class Experiment:
                 data = loadContinuous(op.join(self._absolute_foldername, contFile))
                 rec_ids = np.unique(data['recordingNumber'])
                 for rec_id in rec_ids:
-                    self._recordings.append(Recording(self._absolute_foldername, int(rec_id), self, self.file_prefix))
+                    self._recordings.append(Recording(self._absolute_foldername, int(rec_id), self, self.file_prefix, self.ch_selected))
             else:
-                self._recordings.append(Recording(self._absolute_foldername, int(self.id), self, self.file_prefix))
+                self._recordings.append(Recording(self._absolute_foldername, int(self.id), self, self.file_prefix, self.ch_selected))
 
         elif self.file.format == 'binary':
             self._path = op.dirname(path)
@@ -311,7 +313,7 @@ class Experiment:
 
 
 class Recording:
-    def __init__(self, path, id, experiment, file_prefix='CH'):
+    def __init__(self, path, id, experiment, file_prefix='CH', ch_selected='all'):
         self.experiment = experiment
         self.absolute_foldername = path
         self.sig_chain = experiment.sig_chain
@@ -320,6 +322,7 @@ class Recording:
         self.nchan = experiment.nchan
         self.id = id
         self.file_prefix=file_prefix
+        self.ch_selected=ch_selected
         
         self._analog_signals_dirty = True
         self._digital_signals_dirty = True
@@ -691,9 +694,15 @@ class Recording:
                 # order channels
                 idxs = [int(x[x.find(self.file_prefix) + len(self.file_prefix): x.find('.')]) for x in contFiles]
                 contFiles = list(np.array(contFiles)[np.argsort(idxs)])
-
-                if len(contFiles) != 0:
+                if self.ch_selected != 'all':
+                    if isinstance(self.ch_selected,int):
+                        contFiles = [contFiles[self.ch_selected]]
+                    else:
+                        contFiles = list(contFiles[i] for i in self.ch_selected)
+                    print('Reading selected channels')
+                elif self.ch_selected == 'all':
                     print('Reading all channels')
+                if len(contFiles) != 0:
                     anas = np.array([])
                     for i_f, f in enumerate(contFiles):
                         print(f)
