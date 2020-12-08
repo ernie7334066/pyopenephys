@@ -428,6 +428,7 @@ class Recording:
 
     def _read_sync_message(self):
         info = dict()
+        info['messages']=[]
         stimes = []
 
         if self.format == 'binary':
